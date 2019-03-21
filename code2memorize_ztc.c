@@ -15,21 +15,21 @@ sfr AUXR = 0x8E;    //AUXR地址是AUXR
 void cls_buzz()	   //关闭蜂鸣器
  {
   P2=(P2&0x1f)|0xa0;
-  P0 =0x00;
+  P0 =0x00;		//全都关
   P2&=0x1f;
  }
 						 
 void cls_led()		//关闭LED
 {
 	P2 = ((P2&0x1f)|0x80); 
-	P0 = 0xFF;
+	P0 = 0xFF;  
 	P2 &= 0x1f;
 }
 
 void open_relay()
 {
 	P2 = (P2&0x1f)|0xa0;
-	P0 &= 0XFE;    // 关闭继电器 0X10
+	P0 |= 0X10;//&=0xEF     // 吸和继电器 |=0X10（灯亮）
 	P2 &= 0X1F;
 }
 						 
@@ -75,6 +75,8 @@ sbit P3_6 = P4^2;//位定义用 P3_6 在程序中替换 P4^2的功能
 sbit P3_7 = P4^4;//同上
 //用这个代码之前要记得给生成的延迟函数加一个 unsigned int n的传入参数
 
+
+// 记得这个keyscan要放在中断里面，display也可以放在中断里面
 void keyscan()
 {
    BUFFER = 0X0F; P3_6 = 0; P3_7 = 0;
@@ -98,14 +100,16 @@ void keyscan()
          BUFFER = 0XF0; P3_6 = 1; P3_7 = 1;
          /*我们在进行行扫描，原理同上下方进行判断第几行
          按键按下，结合列标志位生成新的行列标志位。*/
-         if(P3_7 == 0) key_value += 0; while(P3_7 == 0);
-         if(P3_6 == 0) key_value += 1; while(P3_6 == 0);
-         if(BUFFER == 0XD0) key_value += 2; while(BUFFER == 0XD0);
-         if(BUFFER == 0XE0) key_value += 3; while(BUFFER == 0XE0);
+         if(P3_7 == 0) key_value += 0; 
+         if(P3_6 == 0) key_value += 1; 
+         if(BUFFER == 0XD0) key_value += 2; 
+         if(BUFFER == 0XE0) key_value += 3; 
       }
    }
+   else{
+	key_value = 0;
+   }
 }
-
 
 
 
@@ -315,7 +319,7 @@ float rd_temperature_f(void)
 // ---------------------------------------------------DS1302----------------------------------------------- //
 
 
-uchar s_time[7]={0x28,0x23,0x20,0x05,0x03,0x04,0x17};//设置时间数组
+uchar s_time[7]={0x28,0x23,0x20,0x05,0x03,0x04,0x17};//设置时间数组,前面三个直接是十进制时间（s，min，h， r, y, xxx, n）
 uchar g_time[7]={0};  //保存时间数组
 
 //调用DS1302驱动程序完成封装
@@ -323,10 +327,10 @@ void set_time()		//设置时间
 {
  	char i=0;
 	char adr=0x80;   //写地址
-	Ds1302_Single_Byte_Write(0x8e,0x00);    //写保护可写
+	Write_Ds1302_Byte(0x8e,0x00);    //写保护可写
 	for(i=0;i<7;i++)
-	Ds1302_Single_Byte_Write(adr+i*2,s_time[i]);
-	Ds1302_Single_Byte_Write(0x8e,0x80);   //写保护不可写
+	Write_Ds1302_Byte(adr+i*2,s_time[i]);
+	Write_Ds1302_Byte(0x8e,0x80);   //写保护不可写
  
 }
 
@@ -337,7 +341,7 @@ void get_time()	  //获取时间
  	char i=0;
 	for(i=0;i<7;i++)
 	{
-	g_time[i]=Ds1302_Single_Byte_Read(0x81+i*2);
+	g_time[i]=Read_Ds1302_Byte(0x81+i*2);
 	delay(30);
 	}
 }
